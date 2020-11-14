@@ -10,10 +10,12 @@ void send_file(FILE *fp, int sockfd,char* fileName){
   char data[SIZE] = {0};
   
   int fileNameLen = (int)strlen(fileName);
-  char header[SIZE];
-  header[0]=fileNameLen;
-  
+  char header[strlen(fileName)+2];
+  header[0]=fileNameLen+'0';
   strcpy(header+1,fileName);
+  for(int i=0;i<sizeof(header);i++){
+    printf("%c",header[i]);
+  }
   //sprintf(header,"%d%s",fileNameLen,fileName);
    if (send(sockfd, header, sizeof(header), 0) == -1) {
       perror("[-]Error in sending file header.");
