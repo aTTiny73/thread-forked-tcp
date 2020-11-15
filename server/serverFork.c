@@ -1,9 +1,11 @@
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <arpa/inet.h>
-#include <unistd.h>
+#include<stdio.h>
+#include<string.h>
+#include<sys/socket.h>
+#include<arpa/inet.h>
 #include<pthread.h>
+#include<unistd.h>
+#include<sys/wait.h>
+#include<stdlib.h>
 #define SIZE 1024
 
 void write_file(int sockfd){
@@ -42,12 +44,13 @@ int main(){
 
   int port = 8080;
   int err;
+  int childCount;
   pid_t childPID;
   int sockfd, new_sock;
   struct sockaddr_in server_addr, new_addr;
   socklen_t addr_size;
   char buffer[SIZE];
-int childProcCount;
+  
   sockfd = socket(AF_INET, SOCK_STREAM, 0);
   if(sockfd < 0) {
     perror("[-]Error in socket");
@@ -84,11 +87,25 @@ int childProcCount;
       write_file(new_sock);
 
       close(new_sock);
-      exit(0);  /* child terminates
+
+      childCount++;
+
+      exit(0); //child terminates
     }
-    close(connfd);  /*parent closes connected socket*/
+    //Taking care of zombie processes
+  while (childCount) 
+            {
+                childPID = waitpid((pid_t)-1, NULL, WNOHANG); 
+                if (childPID < 0){
+                    perror("waitpid() failed");
+                    exit(1);
+            }else if (childPID == 0) 
+                break;
+            else
+                childCount--; 
+            }
 }
-    
-  }
+   
+  
   return 0;
 }
