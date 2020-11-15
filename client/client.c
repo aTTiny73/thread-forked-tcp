@@ -1,3 +1,5 @@
+//Compile with command : gcc client.c -o client
+//Run with command : ./client testfile1.txt
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -6,36 +8,26 @@
 #define SIZE 1024
 
 void send_file(FILE *fp, int sockfd,char* fileName){
-  int n;
-  char data[SIZE] = {0};
-  
+  char buffer[SIZE];
   int fileNameLen = (int)strlen(fileName);
-  char header[strlen(fileName)+2];
-  header[0]=fileNameLen+'0';
-  strcpy(header+1,fileName);
-  for(int i=0;i<sizeof(header);i++){
-    printf("%c",header[i]);
-  }
-  //sprintf(header,"%d%s",fileNameLen,fileName);
-   if (send(sockfd, header, sizeof(header), 0) == -1) {
+  buffer[0]=fileNameLen;
+  strcpy(buffer+1,fileName);
+   if (send(sockfd, buffer, sizeof(buffer), 0) == -1) {
       perror("[-]Error in sending file header.");
       exit(1);
     }
-  while(fgets(data, SIZE, fp) != NULL) {
-    if (send(sockfd, data, sizeof(data), 0) == -1) {
+  while(fgets(buffer, SIZE, fp) != NULL) {
+    if (send(sockfd, buffer, sizeof(buffer), 0) == -1) {
       perror("[-]Error in sending file data.");
       exit(1);
     }
-    printf("----------Sent data-----------\n");
-    printf("File name: %s, length: %d\n",fileName,fileNameLen);
-    printf("Header: %s, Data : %s\n",header,data);
-    printf("------------------------------\n");
-    
-    bzero(data, SIZE);
+    bzero(buffer, SIZE);
   }
+  printf("[>]File sent: %s, length: %d\n",fileName,fileNameLen);
 }
 
 int main(int argc, char *argv[]){
+
   int port = 8080;
   int sockfd;
   struct sockaddr_in server_addr;
@@ -72,6 +64,7 @@ int main(int argc, char *argv[]){
   printf("[+]File data sent successfully.\n");
 
   printf("[+]Closing the connection.\n");
+  fclose(fp);
   close(sockfd);
 
   return 0;
