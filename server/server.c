@@ -1,49 +1,52 @@
-
+//Compile with command : gcc -pthread server.c -o server
+//Run with command : ./server
+//Terminate with : ctrl + c
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <arpa/inet.h>
 #include <unistd.h>
+#include<pthread.h>
 #define SIZE 1024
 
-void write_file(int sockfd){
-  int n;
+void* write_file(void* p_sockfd){
+  int sockfd = *((int*)p_sockfd);
+  free(p_sockfd);
+  int byteCount;
   FILE *fp;
   char buffer[SIZE];
   int fileNameLen;
-  char fileName[SIZE];
-  int headerFlag=1;
+  byteCount = recv(sockfd, buffer, SIZE, 0);
+    if (byteCount <= 0){
+      return NULL;
+    }
+    fileNameLen=(int)(buffer[0]);
+    char fileName[fileNameLen];
+    fileName[fileNameLen]='\0';
+    strcpy(fileName,buffer+1);
+    fp = fopen(fileName, "w");
   while (1) {
-    n = recv(sockfd, buffer, SIZE, 0);
-    if (n <= 0){
+    byteCount = recv(sockfd, buffer, SIZE, 0);
+    if (byteCount <= 0){
       break;
-      return;
+      return NULL;
     }
-    if(headerFlag){
-    fileNameLen=(int)(buffer[0]-'0');
-    strncpy(fileName,buffer+1,fileNameLen);
-    //strcpy(fileName,buffer+1);
-    headerFlag = 0;
-    }else {
-      fp = fopen(fileName, "w");
-      fprintf(fp, "%s", buffer);
-    }
-    
-
-    printf("-----Recived data------\n");
-    printf("File name: %s, length: %d\n",fileName,fileNameLen);
-    printf("Data : %s\n",buffer);
-    printf("------------------------------\n");
-
+    fprintf(fp, "%s", buffer);
+    //fwrite(buffer,1,n,fp);
     bzero(buffer, SIZE);
   }
-  return;
+  printf("[<]File recived: %s, length: %d\n",fileName,fileNameLen);
+  printf("[+]Data written in the file successfully.\n");
+  printf("-----------------------------------------\n");
+  fclose(fp);
+  close(sockfd);
+  return NULL;
 }
 
 int main(){
 
   int port = 8080;
-  int e;
+  int err;
 
   int sockfd, new_sock;
   struct sockaddr_in server_addr, new_addr;
@@ -61,24 +64,30 @@ int main(){
   server_addr.sin_port = port;
   server_addr.sin_addr.s_addr = inet_addr("127.0.0.1");
 
-  e = bind(sockfd, (struct sockaddr*)&server_addr, sizeof(server_addr));
-  if(e < 0) {
+  err = bind(sockfd, (struct sockaddr*)&server_addr, sizeof(server_addr));
+  if(err < 0) {
     perror("[-]Error in bind");
     exit(1);
   }
   printf("[+]Binding successfull.\n");
 
   if(listen(sockfd, 10) == 0){
- printf("[+]Listening....\n");
+    printf("[+]Listening....\n");
  }else{
- perror("[-]Error in listening");
+    perror("[-]Error in listening");
     exit(1);
  }
-  
   addr_size = sizeof(new_addr);
-  new_sock = accept(sockfd, (struct sockaddr*)&new_addr, &addr_size);
-  write_file(new_sock);
-  printf("[+]Data written in the file successfully.\n");
-  
+  while(1){
+
+    new_sock = accept(sockfd, (struct sockaddr*)&new_addr, &addr_size);
+
+    pthread_t thread;
+    int* pclient = malloc (sizeof(int));
+    *pclient = new_sock;
+
+    pthread_create(&thread, NULL, write_file, pclient);
+    //write_file(new_sock);
+  }
   return 0;
 }
